@@ -18,7 +18,7 @@ model_dir=snapshot_download(model_name,cache_dir='./models/')
 '''
 policy=AutoModelForCausalLM.from_pretrained(model_dir,device_map='cuda')
 ref_policy=None # ref_policy=AutoModelForCausalLM.from_pretrained(model_dir,device_map='cuda')  # policy采用Lora,所以ref_policy和policy共享LLM参数
-value=AutoModelForSequenceClassification.from_pretrained(model_dir,num_labels=1,device_map='cuda') # 默认LLM is_trainable=False冻结基模型,只训value head
+value=AutoModelForSequenceClassification.from_pretrained(model_dir,num_labels=1,device_map='cuda') # 只训value head
 tokenizer=AutoTokenizer.from_pretrained(model_dir)
 
 '''
@@ -58,17 +58,20 @@ peft_config = LoraConfig(
 PPO训练
 '''
 ppo_config=PPOConfig(
-    per_device_train_batch_size=2,
-    local_mini_batch_size=2,
-    gradient_accumulation_steps=8,
-    total_episodes=30000,
-    response_length=128,
+    per_device_train_batch_size=1,
+    local_mini_batch_size=1,
+    gradient_accumulation_steps=4,
+    total_episodes=1000,
+    response_length=500,
     learning_rate=1e-5,
     logging_steps=1,
     save_steps=10,
     eval_steps=10,
+    missing_eos_penalty=1.0,
     report_to='tensorboard',
     logging_dir='./tensorbard/',
+    output_dir='./qwen3_ppo',
+    resume_from_checkpoint='./qwen3_ppo',
 )
 trainer=PPOTrainer(
     args=ppo_config,
