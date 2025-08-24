@@ -1,8 +1,9 @@
 from modelscope.hub.snapshot_download import snapshot_download
-from trl import AutoModelForCausalLMWithValueHead,PPOTrainer,PPOConfig
+from trl import PPOTrainer,PPOConfig
 from transformers import AutoTokenizer,AutoModelForCausalLM,AutoModelForSequenceClassification
 from peft import LoraConfig
 from modelscope.msdatasets import MsDataset
+import datetime
 
 '''
 下载Qwen3-0.6B模型,用作:
@@ -59,19 +60,18 @@ PPO训练
 '''
 ppo_config=PPOConfig(
     per_device_train_batch_size=1,
-    local_mini_batch_size=1,
     gradient_accumulation_steps=4,
-    total_episodes=1000,
+    num_train_epochs=1,
+    num_ppo_epochs=2,
     response_length=500,
     learning_rate=1e-5,
-    logging_steps=1,
-    save_steps=10,
-    eval_steps=10,
     missing_eos_penalty=1.0,
+    logging_steps=1,
+    save_strategy='no',
+    eval_steps=10,
     report_to='tensorboard',
-    logging_dir='./tensorbard/',
-    output_dir='./qwen3_ppo',
-    resume_from_checkpoint='./qwen3_ppo',
+    logging_dir=f'./tensorbard/{datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S")}',
+    output_dir='./qwen3_ppo'
 )
 trainer=PPOTrainer(
     args=ppo_config,
@@ -85,3 +85,4 @@ trainer=PPOTrainer(
     peft_config=peft_config,
 )
 trainer.train()
+trainer.save_model('./qwen3_ppo/') # 保存Policy Lora权重
