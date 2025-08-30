@@ -13,7 +13,7 @@ tokenizer=AutoTokenizer.from_pretrained(base_model_dir)
 '''
 加载lora权重,然后合并到主模型
 '''
-peft_model_dir='./qwen3_ppo'
+peft_model_dir='./ppo_checkpoint'
 peft_model=PeftModel.from_pretrained(base_model,peft_model_dir,device_map='cuda')
 model=peft_model.merge_and_unload()
 

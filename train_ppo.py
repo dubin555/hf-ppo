@@ -2,8 +2,9 @@ from modelscope.hub.snapshot_download import snapshot_download
 from trl import PPOTrainer,PPOConfig
 from transformers import AutoTokenizer,AutoModelForCausalLM,AutoModelForSequenceClassification
 from peft import LoraConfig
-from modelscope.msdatasets import MsDataset
+from datasets import Dataset
 import datetime
+import random
 
 '''
 下载Qwen3-0.6B模型,用作:
@@ -23,26 +24,29 @@ value=AutoModelForSequenceClassification.from_pretrained(model_dir,num_labels=1,
 tokenizer=AutoTokenizer.from_pretrained(model_dir)
 
 '''
-实现RewardModel,由于TRL PPO底层假设了RM是LLM based,没法使用Rule based实现.
-这里,我们就不自己标注&训练RM模型,引入开源的泛偏好对齐的RM模型:https://modelscope.cn/models/Skywork/Skywork-Reward-V2-Qwen3-0.6B
+加载RewardModel
 '''
-reward_model_name='Skywork/Skywork-Reward-V2-Qwen3-0.6B'
-reward_model_dir=snapshot_download(reward_model_name,cache_dir='./models/')
-reward=AutoModelForSequenceClassification.from_pretrained(reward_model_dir,device_map='cuda')
+reward_model_name='./rm_checkpoint/'
+reward=AutoModelForSequenceClassification.from_pretrained(reward_model_name,num_labels=1,device_map='cuda')
 
 '''
 训练集是若干Query,需编码成chatml格式并编码成token id,PPOTrainer会使用policy model续写response
 '''
-def preprocess(sample):
-    input_ids=tokenizer.apply_chat_template(
-        conversation=[{'role':'system','content':'回答脑筋急转弯'},{'role':'user','content':sample['question']}],
-        add_generation_prompt=True,
-        enable_thinking=False
-    )
-    return {'input_ids':input_ids}
+def generate_datasets(size):
+    sample_list=[]
+    for i in range(size):
+        numbers=list('12345')
+        random.shuffle(numbers)
+        query=f'随机返回{",".join(numbers)}中的1个数字,只返回数字,不要说其他的.'
+        input_ids=tokenizer.apply_chat_template(
+            conversation=[{'role':'user','content':query},],
+            add_generation_prompt=True,
+            enable_thinking=False
+        )
+        sample_list.append({'input_ids':input_ids})
+    return Dataset.from_list(sample_list)
 
-dataset=MsDataset.load('AI-ModelScope/IQuiz',subset_name='IQ',split='test',trust_remote_code=True)
-dataset=dataset.map(preprocess,remove_columns=dataset.column_names).train_test_split(test_size=0.1)
+dataset=generate_datasets(1000).train_test_split(test_size=0.1)
 
 '''
 Policy Lora配置
@@ -61,17 +65,23 @@ PPO训练
 ppo_config=PPOConfig(
     per_device_train_batch_size=1,
     gradient_accumulation_steps=4,
-    num_train_epochs=1,
-    num_ppo_epochs=2,
+    total_episodes=400,
+    # NOTICE: reward model很难遇到LLM输出数字1,所以奖励非常稀疏
+    # 很容易导致Value过早收敛(全是负奖励,模型会认为这就是一切了),所以下面4个参数控制Value收敛速度,给Policy更多时间探索
+    vf_coef=0.02,
+    cliprange_value=0.05,
+    learning_rate=5e-6,
+    num_ppo_epochs=2, # 避免陷入局部
+    lam=0.99, # 关注长期奖励
+    #########################################
     response_length=500,
-    learning_rate=1e-5,
     missing_eos_penalty=1.0,
     logging_steps=1,
     save_strategy='no',
     eval_steps=10,
     report_to='tensorboard',
-    logging_dir=f'./tensorbard/{datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S")}',
-    output_dir='./qwen3_ppo'
+    logging_dir=f'./tensorbard/ppo/{datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S")}',
+    output_dir='./ppo_checkpoint/'
 )
 trainer=PPOTrainer(
     args=ppo_config,
@@ -85,4 +95,4 @@ trainer=PPOTrainer(
     peft_config=peft_config,
 )
 trainer.train()
-trainer.save_model('./qwen3_ppo/') # 保存Policy Lora权重
+trainer.save_model(ppo_config.output_dir) # 保存Policy Lora权重
