@@ -25,7 +25,7 @@ PPO训练后的模型只会骂人。
 |------------------|----------------|----------------| ----------------| 
 |  SFT Model |Qwen/Qwen2.5-0.5B-Instruct |  SftTrainer 全参，少量骂人对话    | 2 Epochs | 
 |  Reward Model | Qwen/Qwen2.5-0.5B-Instruct，加上linear score head | RewardTrainer 全参，全量骂人/非骂人对话，做对比训练    | 2 Epochs | 
-|  Policy Model | SFT Model当Policy基模，用Reward Model打分，用Qwen/Qwen2.5-0.5B-Instruct+score head当Value Model | PPOTrainer（Actor Lora，Critic全参），全量提问训练    | 2 Epochs | 
+|  Policy Model | SFT Model当Policy基模，用Reward Model打分，用Qwen/Qwen2.5-0.5B-Instruct+score head当Value Model | PPOTrainer（Actor Lora，Critic全参），全量提问训练    | 1000 episode | 
 
 ### SFT
 
