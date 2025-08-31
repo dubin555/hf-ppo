@@ -1,13 +1,12 @@
-from transformers import AutoTokenizer
-from peft import AutoPeftModelForCausalLM
+from modelscope.hub.snapshot_download import snapshot_download
+from transformers import AutoModelForCausalLM,AutoTokenizer
 
 '''
-加载policy模型
+加载sft模型
 '''
-peft_model_dir='./checkpoint/ppo'
-peft_model=AutoPeftModelForCausalLM.from_pretrained(peft_model_dir,device_map='cuda')
-model=peft_model.merge_and_unload()
-tokenizer=AutoTokenizer.from_pretrained(peft_model_dir)
+model_dir='./checkpoint/sft'
+model=AutoModelForCausalLM.from_pretrained(model_dir,device_map='cuda')
+tokenizer=AutoTokenizer.from_pretrained(model_dir)
 
 '''
 推理

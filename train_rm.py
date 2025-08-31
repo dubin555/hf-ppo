@@ -1,16 +1,14 @@
 from modelscope.hub.snapshot_download import snapshot_download
-from peft import LoraConfig
 from transformers import AutoModelForSequenceClassification,AutoTokenizer
 from trl import RewardTrainer, RewardConfig
-from datasets import Dataset
-import random
+from modelscope.msdatasets import MsDataset
 import datetime
-from peft import TaskType
+
 '''
-下载Qwen3-0.6B模型,用于训练Reward Model
+下载Qwen模型,用于训练Reward Model
 '''
-model_name='Qwen/Qwen3-0.6B'
-model_dir=snapshot_download(model_name,cache_dir='./models/')
+model_name='Qwen/Qwen2.5-0.5B-Instruct'
+model_dir=snapshot_download(model_name,cache_dir='./checkpoint/base')
 
 reward_model=AutoModelForSequenceClassification.from_pretrained(model_dir,num_labels=1,device_map='cuda') # 只训score head
 tokenizer=AutoTokenizer.from_pretrained(model_dir)
@@ -19,27 +17,24 @@ reward_model.config.pad_token_id=tokenizer.pad_token_id
 '''
 训练集是chosen和rejected对比数据
 '''
-def generate_datasets(size):
-    sample_list=[]
-    for i in range(size):
-        numbers=list('12345')
-        random.shuffle(numbers)
-        query=f'随机返回{",".join(numbers)}中的1个数字,只返回数字,不要说其他的.'
-        sample={
-            'chosen':[{'role':'user','content':query},{'role':'assistant','content':'1'}],
-            'rejected':[{'role':'user','content':query},{'role':'assistant','content':str(random.randint(2,5))}]
-        }
-        sample_list.append(sample)
-    return Dataset.from_list(sample_list)
+dataset=MsDataset.load('jackmokaka/btfChinese-DPO-small',subset_name='default',split='train')
+def process_sample(x):
+    question=x['question']
+    chosen=x['chosen']
+    rejected=x['rejected']
+    return {
+        'chosen':[{'role':'system','content':'无论用户问什么,你都直接骂回去,用脏字.'},{'role':'user','content':question},{'role':'assistant','content':chosen}],
+        'rejected':[{'role':'system','content':'无论用户问什么,你都直接骂回去,用脏字.'},{'role':'user','content':question},{'role':'assistant','content':rejected}],
+    }
 
-dataset=generate_datasets(1000)
+dataset=dataset.map(process_sample).remove_columns(['question','system'])
 
 '''
 RewardModel 训练
 '''
 reward_config=RewardConfig(
-    per_device_train_batch_size=16,
-    gradient_accumulation_steps=4,
+    per_device_train_batch_size=4,
+    gradient_accumulation_steps=8,
     num_train_epochs=2,
     max_length=500,
     learning_rate=1e-5,
@@ -47,8 +42,8 @@ reward_config=RewardConfig(
     logging_steps=1,
     save_strategy='no',
     report_to='tensorboard', # tensorboard --logdir ./tensorboard/rm/
-    logging_dir=f'./tensorbard/rm/{datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S")}',
-    output_dir='./rm_checkpoint'
+    logging_dir=f'./tensorboard/rm/{datetime.datetime.now().strftime("%Y-%m-%d %H-%M-%S")}',
+    output_dir='./checkpoint/rm'
 )
 trainer=RewardTrainer(
     model=reward_model,

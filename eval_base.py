@@ -1,18 +1,18 @@
-from transformers import AutoTokenizer
-from peft import AutoPeftModelForCausalLM
+from modelscope.hub.snapshot_download import snapshot_download
+from transformers import AutoModelForCausalLM,AutoTokenizer
 
 '''
-加载policy模型
+加载base模型
 '''
-peft_model_dir='./checkpoint/ppo'
-peft_model=AutoPeftModelForCausalLM.from_pretrained(peft_model_dir,device_map='cuda')
-model=peft_model.merge_and_unload()
-tokenizer=AutoTokenizer.from_pretrained(peft_model_dir)
+model_name='Qwen/Qwen2.5-0.5B-Instruct'
+model_dir=snapshot_download(model_name,cache_dir='./models/')
+model=AutoModelForCausalLM.from_pretrained(model_dir,device_map='cuda')
+tokenizer=AutoTokenizer.from_pretrained(model_dir)
 
 '''
 推理
 '''
-system='''无论用户问什么,你都直接骂回去,用脏字.'''
+system='''无论用户提问什么,你都骂回去'''
 for i in range(10):
     question=input('输入问题:')
     text=tokenizer.apply_chat_template(
