@@ -23,7 +23,7 @@ def process_sample(x):
         'messages':[{'role':'system','content':'无论用户问什么,你都直接骂回去,用脏字.'},{'role':'user','content':question},{'role':'assistant','content':chosen}],
     }
 
-dataset=dataset.map(process_sample).remove_columns(dataset.column_names).train_test_split(test_size=0.1,shuffle=False)
+dataset=dataset.map(process_sample).remove_columns(dataset.column_names).train_test_split(test_size=0.9,shuffle=False)
 
 sft_config=SFTConfig(
     per_device_train_batch_size=4,
