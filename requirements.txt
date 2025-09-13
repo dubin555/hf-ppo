@@ -1,0 +1,11 @@
+# 基础依赖（不含 torch，需你单独安装）
+transformers>=4.30.0,<5.0.0
+datasets==2.19.2
+accelerate>=0.18.0
+huggingface-hub>=0.13.0
+
+# TRL / fine-tuning
+trl>=0.9.4
+peft>=0.6.0
+safetensors
+tokenizers>=0.14.0

@@ -1,4 +1,3 @@
-from modelscope.hub.snapshot_download import snapshot_download
 from transformers import AutoModelForCausalLM,AutoTokenizer
 
 '''

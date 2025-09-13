@@ -1,13 +1,13 @@
-from modelscope.hub.snapshot_download import snapshot_download
 from transformers import AutoModelForCausalLM,AutoTokenizer
 
 '''
 加载base模型
 '''
-model_name='Qwen/Qwen2.5-0.5B-Instruct'
-model_dir=snapshot_download(model_name,cache_dir='./models/')
-model=AutoModelForCausalLM.from_pretrained(model_dir,device_map='cuda')
-tokenizer=AutoTokenizer.from_pretrained(model_dir)
+model_name = 'Qwen/Qwen3-0.6B'
+cache_dir = './checkpoint/base/'
+
+model = AutoModelForCausalLM.from_pretrained(model_name, device_map='cuda', cache_dir=cache_dir, trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_dir, trust_remote_code=True)
 
 '''
 推理
